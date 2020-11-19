@@ -23,7 +23,9 @@ from .logger import create_logger
 from .dictionary import Dictionary
 
 
-MAIN_DUMP_PATH = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), 'dumped')
+MAIN_DUMP_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "dumped"
+)
 
 logger = getLogger()
 
@@ -31,16 +33,19 @@ logger = getLogger()
 # load Faiss if available (dramatically accelerates the nearest neighbor search)
 try:
     import faiss
+
     FAISS_AVAILABLE = True
-    if not hasattr(faiss, 'StandardGpuResources'):
-        sys.stderr.write("Impossible to import Faiss-GPU. "
-                         "Switching to FAISS-CPU, "
-                         "this will be slower.\n\n")
+    if not hasattr(faiss, "StandardGpuResources"):
+        sys.stderr.write(
+            "Impossible to import Faiss-GPU. " "Switching to FAISS-CPU, " "this will be slower.\n\n"
+        )
 
 except ImportError:
-    sys.stderr.write("Impossible to import Faiss library!! "
-                     "Switching to standard nearest neighbors search implementation, "
-                     "this will be significantly slower.\n\n")
+    sys.stderr.write(
+        "Impossible to import Faiss library!! "
+        "Switching to standard nearest neighbors search implementation, "
+        "this will be significantly slower.\n\n"
+    )
     FAISS_AVAILABLE = False
 
 
@@ -49,7 +54,7 @@ def initialize_exp(params):
     Initialize experiment.
     """
     # initialization
-    if getattr(params, 'seed', -1) >= 0:
+    if getattr(params, "seed", -1) >= 0:
         np.random.seed(params.seed)
         torch.manual_seed(params.seed)
         if params.cuda:
@@ -57,14 +62,14 @@ def initialize_exp(params):
 
     # dump parameters
     params.exp_path = get_exp_path(params)
-    with io.open(os.path.join(params.exp_path, 'params.pkl'), 'wb') as f:
+    with io.open(os.path.join(params.exp_path, "params.pkl"), "wb") as f:
         pickle.dump(params, f)
 
     # create logger
-    logger = create_logger(os.path.join(params.exp_path, 'train.log'), vb=params.verbose)
-    logger.info('============ Initialized logger ============')
-    logger.info('\n'.join('%s: %s' % (k, str(v)) for k, v in sorted(dict(vars(params)).items())))
-    logger.info('The experiment will be stored in %s' % params.exp_path)
+    logger = create_logger(os.path.join(params.exp_path, "train.log"), vb=params.verbose)
+    logger.info("============ Initialized logger ============")
+    logger.info("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(params)).items())))
+    logger.info("The experiment will be stored in %s" % params.exp_path)
     return logger
 
 
@@ -75,8 +80,10 @@ def load_fasttext_model(path):
     try:
         import fastText
     except ImportError:
-        raise Exception("Unable to import fastText. Please install fastText for Python: "
-                        "https://github.com/facebookresearch/fastText")
+        raise Exception(
+            "Unable to import fastText. Please install fastText for Python: "
+            "https://github.com/facebookresearch/fastText"
+        )
     return fastText.load_model(path)
 
 
@@ -140,7 +147,7 @@ def get_nn_avg_dist(emb, query, knn):
     if FAISS_AVAILABLE:
         emb = emb.cpu().numpy()
         query = query.cpu().numpy()
-        if hasattr(faiss, 'StandardGpuResources'):
+        if hasattr(faiss, "StandardGpuResources"):
             # gpu mode
             res = faiss.StandardGpuResources()
             config = faiss.GpuIndexFlatConfig()
@@ -157,7 +164,7 @@ def get_nn_avg_dist(emb, query, knn):
         all_distances = []
         emb = emb.transpose(0, 1).contiguous()
         for i in range(0, query.shape[0], bs):
-            distances = query[i:i + bs].mm(emb)
+            distances = query[i : i + bs].mm(emb)
             best_distances, _ = distances.topk(knn, dim=1, largest=True, sorted=True)
             all_distances.append(best_distances.mean(1).cpu())
         all_distances = torch.cat(all_distances)
@@ -168,9 +175,9 @@ def bool_flag(s):
     """
     Parse boolean arguments from the command line.
     """
-    if s.lower() in ['off', 'false', '0']:
+    if s.lower() in ["off", "false", "0"]:
         return False
-    if s.lower() in ['on', 'true', '1']:
+    if s.lower() in ["on", "true", "1"]:
         return True
     raise argparse.ArgumentTypeError("invalid value for a boolean flag (0 or 1)")
 
@@ -183,10 +190,10 @@ def get_optimizer(s):
         - "adagrad,lr=0.1,lr_decay=0.05"
     """
     if "," in s:
-        method = s[:s.find(',')]
+        method = s[: s.find(",")]
         optim_params = {}
-        for x in s[s.find(',') + 1:].split(','):
-            split = x.split('=')
+        for x in s[s.find(",") + 1 :].split(","):
+            split = x.split("=")
             assert len(split) == 2
             assert re.match("^[+-]?(\d+(\.\d*)?|\.\d+)$", split[1]) is not None
             optim_params[split[0]] = float(split[1])
@@ -194,32 +201,34 @@ def get_optimizer(s):
         method = s
         optim_params = {}
 
-    if method == 'adadelta':
+    if method == "adadelta":
         optim_fn = optim.Adadelta
-    elif method == 'adagrad':
+    elif method == "adagrad":
         optim_fn = optim.Adagrad
-    elif method == 'adam':
+    elif method == "adam":
         optim_fn = optim.Adam
-    elif method == 'adamax':
+    elif method == "adamax":
         optim_fn = optim.Adamax
-    elif method == 'asgd':
+    elif method == "asgd":
         optim_fn = optim.ASGD
-    elif method == 'rmsprop':
+    elif method == "rmsprop":
         optim_fn = optim.RMSprop
-    elif method == 'rprop':
+    elif method == "rprop":
         optim_fn = optim.Rprop
-    elif method == 'sgd':
+    elif method == "sgd":
         optim_fn = optim.SGD
-        assert 'lr' in optim_params
+        assert "lr" in optim_params
     else:
         raise Exception('Unknown optimization method: "%s"' % method)
 
     # check that we give good parameters to the optimizer
     expected_args = inspect.getargspec(optim_fn.__init__)[0]
-    assert expected_args[:2] == ['self', 'params']
+    assert expected_args[:2] == ["self", "params"]
     if not all(k in expected_args[2:] for k in optim_params.keys()):
-        raise Exception('Unexpected parameters: expected "%s", got "%s"' % (
-            str(expected_args[2:]), str(optim_params.keys())))
+        raise Exception(
+            'Unexpected parameters: expected "%s", got "%s"'
+            % (str(expected_args[2:]), str(optim_params.keys()))
+        )
 
     return optim_fn, optim_params
 
@@ -229,17 +238,17 @@ def get_exp_path(params):
     Create a directory to store the experiment.
     """
     # create the main dump path if it does not exist
-    exp_folder = MAIN_DUMP_PATH if params.exp_path == '' else params.exp_path
+    exp_folder = MAIN_DUMP_PATH if params.exp_path == "" else params.exp_path
     if not os.path.exists(exp_folder):
         subprocess.Popen("mkdir %s" % exp_folder, shell=True).wait()
-    assert params.exp_name != ''
+    assert params.exp_name != ""
     exp_folder = os.path.join(exp_folder, params.exp_name)
     if not os.path.exists(exp_folder):
         subprocess.Popen("mkdir %s" % exp_folder, shell=True).wait()
-    if params.exp_id == '':
-        chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
+    if params.exp_id == "":
+        chars = "abcdefghijklmnopqrstuvwxyz0123456789"
         while True:
-            exp_id = ''.join(random.choice(chars) for _ in range(10))
+            exp_id = "".join(random.choice(chars) for _ in range(10))
             exp_path = os.path.join(exp_folder, exp_id)
             if not os.path.isdir(exp_path):
                 break
@@ -272,27 +281,31 @@ def read_txt_embeddings(params, source, full_vocab):
     lang = params.src_lang if source else params.tgt_lang
     emb_path = params.src_emb if source else params.tgt_emb
     _emb_dim_file = params.emb_dim
-    with io.open(emb_path, 'r', encoding='utf-8', newline='\n', errors='ignore') as f:
+    with io.open(emb_path, "r", encoding="utf-8", newline="\n", errors="ignore") as f:
         for i, line in enumerate(f):
             if i == 0:
                 split = line.split()
                 assert len(split) == 2
                 assert _emb_dim_file == int(split[1])
             else:
-                word, vect = line.rstrip().split(' ', 1)
+                word, vect = line.rstrip().split(" ", 1)
                 if not full_vocab:
                     word = word.lower()
-                vect = np.fromstring(vect, sep=' ')
+                vect = np.fromstring(vect, sep=" ")
                 if np.linalg.norm(vect) == 0:  # avoid to have null embeddings
                     vect[0] = 0.01
                 if word in word2id:
                     if full_vocab:
-                        logger.warning("Word '%s' found twice in %s embedding file"
-                                       % (word, 'source' if source else 'target'))
+                        logger.warning(
+                            "Word '%s' found twice in %s embedding file"
+                            % (word, "source" if source else "target")
+                        )
                 else:
                     if not vect.shape == (_emb_dim_file,):
-                        logger.warning("Invalid dimension (%i) for %s word '%s' in line %i."
-                                       % (vect.shape[0], 'source' if source else 'target', word, i))
+                        logger.warning(
+                            "Invalid dimension (%i) for %s word '%s' in line %i."
+                            % (vect.shape[0], "source" if source else "target", word, i)
+                        )
                         continue
                     assert vect.shape == (_emb_dim_file,), i
                     word2id[word] = len(word2id)
@@ -340,8 +353,8 @@ def load_pth_embeddings(params, source, full_vocab):
     # reload PyTorch binary file
     lang = params.src_lang if source else params.tgt_lang
     data = torch.load(params.src_emb if source else params.tgt_emb)
-    dico = data['dico']
-    embeddings = data['vectors']
+    dico = data["dico"]
+    embeddings = data["vectors"]
     assert dico.lang == lang
     assert embeddings.size() == (len(dico), params.emb_dim)
     logger.info("Loaded %i pre-trained word embeddings." % len(dico))
@@ -367,7 +380,9 @@ def load_bin_embeddings(params, source, full_vocab):
     words = model.get_labels()
     assert model.get_dimension() == params.emb_dim
     logger.info("Loaded binary model. Generating embeddings ...")
-    embeddings = torch.from_numpy(np.concatenate([model.get_word_vector(w)[None] for w in words], 0))
+    embeddings = torch.from_numpy(
+        np.concatenate([model.get_word_vector(w)[None] for w in words], 0)
+    )
     logger.info("Generated embeddings for %i words." % len(words))
     assert embeddings.size() == (len(words), params.emb_dim)
 
@@ -398,9 +413,9 @@ def load_embeddings(params, source, full_vocab=False):
     """
     assert type(source) is bool and type(full_vocab) is bool
     emb_path = params.src_emb if source else params.tgt_emb
-    if emb_path.endswith('.pth'):
+    if emb_path.endswith(".pth"):
         return load_pth_embeddings(params, source, full_vocab)
-    if emb_path.endswith('.bin'):
+    if emb_path.endswith(".bin"):
         return load_bin_embeddings(params, source, full_vocab)
     else:
         return read_txt_embeddings(params, source, full_vocab)
@@ -410,14 +425,14 @@ def normalize_embeddings(emb, types, mean=None):
     """
     Normalize embeddings by their norms / recenter them.
     """
-    for t in types.split(','):
-        if t == '':
+    for t in types.split(","):
+        if t == "":
             continue
-        if t == 'center':
+        if t == "center":
             if mean is None:
                 mean = emb.mean(0, keepdim=True)
             emb.sub_(mean.expand_as(emb))
-        elif t == 'renorm':
+        elif t == "renorm":
             emb.div_(emb.norm(2, 1, keepdim=True).expand_as(emb))
         else:
             raise Exception('Unknown normalization type: "%s"' % t)
@@ -432,26 +447,27 @@ def export_embeddings(src_emb, tgt_emb, params):
 
     # text file
     if params.export == "txt":
-        src_path = os.path.join(params.exp_path, 'vectors-%s.txt' % params.src_lang)
-        tgt_path = os.path.join(params.exp_path, 'vectors-%s.txt' % params.tgt_lang)
+        src_path = os.path.join(params.exp_path, "vectors-%s.txt" % params.src_lang)
+        tgt_path = os.path.join(params.exp_path, "vectors-%s.txt" % params.tgt_lang)
         # source embeddings
-        logger.info('Writing source embeddings to %s ...' % src_path)
-        with io.open(src_path, 'w', encoding='utf-8') as f:
+        logger.info("Writing source embeddings to %s ..." % src_path)
+        with io.open(src_path, "w", encoding="utf-8") as f:
             f.write(u"%i %i\n" % src_emb.size())
             for i in range(len(params.src_dico)):
-                f.write(u"%s %s\n" % (params.src_dico[i], " ".join('%.5f' % x for x in src_emb[i])))
+                f.write(u"%s %s\n" % (params.src_dico[i], " ".join("%.5f" % x for x in src_emb[i])))
         # target embeddings
-        logger.info('Writing target embeddings to %s ...' % tgt_path)
-        with io.open(tgt_path, 'w', encoding='utf-8') as f:
+        logger.info("Writing target embeddings to %s ..." % tgt_path)
+        with io.open(tgt_path, "w", encoding="utf-8") as f:
             f.write(u"%i %i\n" % tgt_emb.size())
             for i in range(len(params.tgt_dico)):
-                f.write(u"%s %s\n" % (params.tgt_dico[i], " ".join('%.5f' % x for x in tgt_emb[i])))
+                f.write(u"%s %s\n" % (params.tgt_dico[i], " ".join("%.5f" % x for x in tgt_emb[i])))
 
     # PyTorch file
     if params.export == "pth":
-        src_path = os.path.join(params.exp_path, 'vectors-%s.pth' % params.src_lang)
-        tgt_path = os.path.join(params.exp_path, 'vectors-%s.pth' % params.tgt_lang)
-        logger.info('Writing source embeddings to %s ...' % src_path)
-        torch.save({'dico': params.src_dico, 'vectors': src_emb}, src_path)
-        logger.info('Writing target embeddings to %s ...' % tgt_path)
-        torch.save({'dico': params.tgt_dico, 'vectors': tgt_emb}, tgt_path)
+        src_path = os.path.join(params.exp_path, "vectors-%s.pth" % params.src_lang)
+        tgt_path = os.path.join(params.exp_path, "vectors-%s.pth" % params.tgt_lang)
+        logger.info("Writing source embeddings to %s ..." % src_path)
+        torch.save({"dico": params.src_dico, "vectors": src_emb}, src_path)
+        logger.info("Writing target embeddings to %s ..." % tgt_path)
+        torch.save({"dico": params.tgt_dico, "vectors": tgt_emb}, tgt_path)
+

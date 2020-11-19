@@ -6,7 +6,9 @@
 #
 
 from logging import getLogger
+from copy import deepcopy
 import torch
+import os
 
 from .utils import get_nn_avg_dist
 
@@ -176,3 +178,73 @@ def build_dictionary(src_emb, tgt_emb, params, s2t_candidates=None, t2s_candidat
 
     logger.info('New train dictionary of %i pairs.' % dico.size(0))
     return dico.cuda() if params.cuda else dico
+
+
+def build_S2T_dictionary_and_saved(src_emb, tgt_emb, params):
+    dico_build = "S2T"
+    dico_max_size = 0
+    # temp params / dictionary generation
+    _params = deepcopy(params)
+    _params.dico_method = "csls_knn_10"
+    _params.dico_build = dico_build
+    _params.dico_threshold = 0
+    _params.dico_max_rank = 0
+    _params.dico_min_size = 0
+    _params.dico_max_size = dico_max_size
+
+    dico = build_dictionary(src_emb, tgt_emb, _params)
+    save_dico_path = _params.save_dico_path
+
+    dico_txt_path = os.path.join(
+        save_dico_path, "dictionary-%s2%s.txt" % (_params.src_lang, _params.tgt_lang)
+    )
+    dico_pth_path = os.path.join(
+        save_dico_path, "dictionary-%s2%s.pth" % (_params.src_lang, _params.tgt_lang)
+    )
+    logger.info("save txt dictionary to path %s..." % dico_txt_path)
+    with open(dico_txt_path, "w", encoding="utf-8") as f:
+        f.write(u"%s %s\n" % (_params.src_lang, _params.tgt_lang))
+        for i in range(len(dico)):
+            f.write(u"%i %i\n" % (dico[i][0].cpu(), dico[i][1].cpu()))
+
+    logger.info("save pth dictionary to path %s..." % dico_pth_path)
+    torch.save(
+        {"src_dico": _params.src_dico, "tgt_dico": _params.tgt_dico, "dictionary": dico},
+        dico_pth_path,
+    )
+    logger.info("save dictionary done!")
+
+
+def build_T2S_dictionary_and_saved(src_emb, tgt_emb, params):
+    dico_build = "T2S"
+    dico_max_size = 0
+    # temp params / dictionary generation
+    _params = deepcopy(params)
+    _params.dico_method = "csls_knn_10"
+    _params.dico_build = dico_build
+    _params.dico_threshold = 0
+    _params.dico_max_rank = 0
+    _params.dico_min_size = 0
+    _params.dico_max_size = dico_max_size
+
+    dico = build_dictionary(src_emb, tgt_emb, _params)
+    save_dico_path = _params.save_dico_path
+
+    dico_txt_path = os.path.join(
+        save_dico_path, "dictionary-%s2%s.txt" % (_params.tgt_lang, _params.src_lang)
+    )
+    dico_pth_path = os.path.join(
+        save_dico_path, "dictionary-%s2%s.pth" % (_params.tgt_lang, _params.src_lang)
+    )
+    logger.info("save txt dictionary to path %s..." % dico_txt_path)
+    with open(dico_txt_path, "w", encoding="utf-8") as f:
+        f.write(u"%s %s\n" % (_params.tgt_lang, _params.src_lang))
+        for i in range(len(dico)):
+            f.write(u"%i %i\n" % (dico[i][0].cpu(), dico[i][1].cpu()))
+
+    logger.info("save pth dictionary to path %s..." % dico_pth_path)
+    torch.save(
+        {"src_dico": _params.src_dico, "tgt_dico": _params.tgt_dico, "dictionary": dico},
+        dico_pth_path,
+    )
+    logger.info("save dictionary done!")
